@@ -5,11 +5,17 @@
 
 namespace fibers
 {
+    std::uint32_t Fiber::ms_fibersCount = 0;
+
     void Fiber::FiberEntry(void*)
     {
         Fiber* thisFiber = this_fiber::getThisFiber();
         thisFiber->deleteFiberToDelete();
         thisFiber->m_proc();
+        for (auto joinedFiber : thisFiber->m_joinedFibers)
+        {
+            joinedFiber->m_isJoinedTo = false;
+        }
         this_fiber::getScheduler()->markForDelete(thisFiber);
         this_fiber::yield();
         assert(this_fiber::getScheduler()->m_fibers.size() == 1);
@@ -42,12 +48,16 @@ namespace fibers
     Fiber::Fiber()
         : m_handle(nullptr)
         , m_proc()
+        , m_id(ms_fibersCount++)
+        , m_isJoinedTo(false)
     {
     }
 
     Fiber::Fiber(std::function<void()> proc, size_t stackSize /* = 0*/)
         : m_proc(proc)
         , m_handle(nullptr)
+        , m_id(ms_fibersCount++)
+        , m_isJoinedTo(false)
     {
         m_handle = ::CreateFiber(stackSize, &Fiber::FiberEntry, this);
         this_fiber::getScheduler()->m_fibers.push_back(this);
@@ -56,6 +66,8 @@ namespace fibers
     Fiber::Fiber(fibers::details::NativeHandle fiber)
         : m_handle(fiber)
         , m_proc([]() {})
+        , m_id(ms_fibersCount++)
+        , m_isJoinedTo(false)
     {
         this_fiber::getScheduler()->m_fibers.push_back(this);
     }
@@ -75,6 +87,18 @@ namespace fibers
     {
         ::SwitchToFiber(m_handle);
         deleteFiberToDelete();
+    }
+
+    void Fiber::join()
+    {
+        Fiber* thisFiber = this_fiber::getThisFiber();
+        assert(thisFiber != this);
+        thisFiber->m_isJoinedTo = true;
+        m_joinedFibers.push_back(thisFiber);
+        while (thisFiber->m_isJoinedTo)
+        {
+            this_fiber::yield();
+        }
     }
 
 

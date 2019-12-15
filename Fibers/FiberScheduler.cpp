@@ -13,7 +13,10 @@ namespace fibers
     Fiber* FiberScheduler::getNext()
     {
         Fiber* thisFiber = this_fiber::getThisFiber();
-        auto it = std::find_if(m_fibers.begin(), m_fibers.end(), [=](Fiber* f) {return f != m_fiberToDelete && f != thisFiber; });
+        auto it = std::find_if(m_fibers.begin(), m_fibers.end(), [=](Fiber* f) 
+            {
+                return f != m_fiberToDelete && f != thisFiber; 
+            });
         if (it == m_fibers.end())
         {
             return thisFiber;

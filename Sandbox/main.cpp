@@ -1,30 +1,19 @@
 #include <Fibers/main.h>
-#include <Fibers/Thread.h>
 #include <iostream>
 
 void FiberMain(void*)
 {
-    fibers::Thread t1([]() {
-        fibers::Fiber* f1 = new fibers::Fiber([]()
+    auto mainFiber = fibers::this_fiber::getThisFiber();
+    fibers::Fiber* f = new fibers::Fiber([mainFiber]()
         {
-            for (int i = 0; i < 11; i += 2)
+            for (int i = 0; i < 10; ++i)
             {
                 std::cout << i << ' ';
                 fibers::this_fiber::yield();
             }
+            mainFiber->join();
+            std::cout << '\n';
         });
-
-        fibers::Fiber* f2 = new fibers::Fiber([]()
-        {
-            for (int i = 1; i < 10; i += 2)
-            {
-                std::cout << i << ' ';
-                fibers::this_fiber::yield();
-            }
-        });
-        std::cout << std::endl << fibers::this_fiber::getScheduler() << std::endl;
-    });
-    
-    t1.join();
+    f->join();
     std::cout << fibers::this_fiber::getScheduler();
 }
